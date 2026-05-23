@@ -19,6 +19,10 @@ export function registerBrowserCommand(program: Command): void {
       "Expose --pageId on page-scoped tools (otherwise the daemon uses an implicit selected page)",
     )
     .option(
+      "--headed",
+      "Launch Chrome with a visible window (default: headless)",
+    )
+    .option(
       "--idle-timeout <minutes>",
       "Self-shutdown after this many minutes idle (0 = never)",
       "30",
@@ -27,8 +31,20 @@ export function registerBrowserCommand(program: Command): void {
       async (opts: {
         name?: string;
         pageIdRouting?: boolean;
+        headed?: boolean;
         idleTimeout: string;
       }) => {
+        if (opts.name) {
+          const running = await listBrowsers();
+          const dup = running.find((m) => m.name === opts.name);
+          if (dup) {
+            console.error(
+              `A browser named "${opts.name}" is already running (id=${dup.id}).`,
+            );
+            console.error(`Stop it first:  chromie browser stop ${opts.name}`);
+            process.exit(1);
+          }
+        }
         const id = uuidv7();
         const idleMin = Number(opts.idleTimeout);
         if (Number.isNaN(idleMin) || idleMin < 0) {
@@ -38,6 +54,7 @@ export function registerBrowserCommand(program: Command): void {
           id,
           name: opts.name ?? null,
           pageIdRouting: Boolean(opts.pageIdRouting),
+          headed: Boolean(opts.headed),
           idleTimeoutMs: idleMin > 0 ? idleMin * 60 * 1000 : 0,
         });
         console.log(id);

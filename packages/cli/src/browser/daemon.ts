@@ -16,6 +16,7 @@ interface DaemonArgs {
   id: string;
   name: string | null;
   pageIdRouting: boolean;
+  headed: boolean;
   idleTimeoutMs: number;
 }
 
@@ -26,6 +27,7 @@ function parseDaemonArgs(argv: string[]): DaemonArgs {
     id: "",
     name: null,
     pageIdRouting: false,
+    headed: false,
     idleTimeoutMs: 30 * 60 * 1000,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -33,6 +35,7 @@ function parseDaemonArgs(argv: string[]): DaemonArgs {
     if (a === "--id") opts.id = String(argv[++i]);
     else if (a === "--name") opts.name = String(argv[++i]);
     else if (a === "--pageIdRouting") opts.pageIdRouting = true;
+    else if (a === "--headed") opts.headed = true;
     else if (a === "--idle-timeout-ms") opts.idleTimeoutMs = Number(argv[++i]);
   }
   if (!opts.id) throw new Error("--id is required");
@@ -48,6 +51,7 @@ export async function runDaemon(argv: string[]): Promise<void> {
 
   const { client, close: closeMcp } = await createInProcessMcp({
     pageIdRouting: opts.pageIdRouting,
+    headed: opts.headed,
   });
 
   let lastActivity = Date.now();

@@ -5,6 +5,7 @@ import { parseArguments } from "chrome-devtools-mcp/build/src/bin/chrome-devtool
 
 export interface InProcessMcpOptions {
   pageIdRouting?: boolean;
+  headed?: boolean;
 }
 
 export interface InProcessMcp {
@@ -20,12 +21,14 @@ export async function createInProcessMcp(
   const argv = [
     "node",
     "chromie",
-    "--headless",
     "--isolated",
     "--experimentalStructuredContent",
     "--categoryExtensions",
     "--no-usage-statistics",
   ];
+  if (!opts.headed) {
+    argv.push("--headless");
+  }
   if (opts.pageIdRouting) {
     argv.push("--experimentalPageIdRouting");
   }

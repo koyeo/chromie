@@ -5,6 +5,7 @@ export interface SpawnOptions {
   id: string;
   name: string | null;
   pageIdRouting: boolean;
+  headed: boolean;
   idleTimeoutMs: number;
 }
 
@@ -35,6 +36,7 @@ export async function spawnDaemon(opts: SpawnOptions): Promise<SpawnResult> {
   ];
   if (opts.name) args.push("--name", opts.name);
   if (opts.pageIdRouting) args.push("--pageIdRouting");
+  if (opts.headed) args.push("--headed");
 
   const child = spawn(process.execPath, args, {
     detached: true,
