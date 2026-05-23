@@ -67,6 +67,16 @@ function describeProp(prop: JsonSchema): string {
   return `${desc}${metaStr}`;
 }
 
+// process.exit() doesn't wait for stdout's write queue. For small outputs the
+// queue is empty by exit time; for large ones (~64KB+ on macOS pipes) we'd
+// truncate at the kernel pipe-buffer boundary. Always drain before exit.
+function writeAndDrain(stream: NodeJS.WriteStream, payload: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (stream.write(payload)) resolve();
+    else stream.once("drain", () => resolve());
+  });
+}
+
 function rootOpts(cmd: Command): Record<string, unknown> {
   // commander: leaf action receives the Command; .parent walks up to root program.
   let cur: Command | null = cmd;
@@ -127,10 +137,13 @@ export async function registerToolCommands(devtools: Command): Promise<void> {
             arguments: toolArgs,
           })) as Parameters<typeof renderToolResult>[0];
         }
-        console.log(renderToolResult(result, format));
+        await writeAndDrain(process.stdout, renderToolResult(result, format) + "\n");
       } catch (e) {
         exitCode = 1;
-        console.error(e instanceof Error ? e.message : String(e));
+        await writeAndDrain(
+          process.stderr,
+          (e instanceof Error ? e.message : String(e)) + "\n",
+        );
       }
       // Always close the ephemeral in-process MCP (whether or not we used it
       // for the call — listTools() at startup did). Puppeteer keeps the event
