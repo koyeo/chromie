@@ -2,7 +2,9 @@ SHELL  := /bin/bash
 ROOT   := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ENTRY  := $(ROOT)/packages/cli/dist/bin.js
 
-PREFIX  ?= /usr/local
+# Per-user install by default (XDG-style) — no sudo required.
+# For a system-wide install:  sudo make install PREFIX=/usr/local
+PREFIX  ?= $(HOME)/.local
 BIN_DIR := $(PREFIX)/bin
 TARGET  := $(BIN_DIR)/chromie
 
@@ -19,20 +21,29 @@ build: deps
 install: build
 	@mkdir -p "$(BIN_DIR)" 2>/dev/null || { \
 		echo "Cannot create $(BIN_DIR)."; \
-		echo "Try:  sudo make install"; \
-		echo "  or: PREFIX=\$$HOME/.local make install   (ensure ~/.local/bin is on PATH)"; \
+		echo "  Try:   sudo make install PREFIX=$(PREFIX)"; \
+		echo "  Or:    make install PREFIX=\$$HOME/.local"; \
 		exit 1; \
 	}
 	@printf '#!/bin/sh\nexec node "%s" "$$@"\n' "$(ENTRY)" > "$(TARGET)" 2>/dev/null || { \
 		echo "Cannot write $(TARGET)."; \
-		echo "Try:  sudo make install"; \
-		echo "  or: PREFIX=\$$HOME/.local make install"; \
+		echo "  Try:   sudo make install PREFIX=$(PREFIX)"; \
+		echo "  Or:    make install PREFIX=\$$HOME/.local"; \
 		exit 1; \
 	}
 	@chmod +x "$(TARGET)"
 	@echo "Installed: $(TARGET)"
 	@echo "          -> $(ENTRY)"
-	@echo "Try:       chromie --help"
+	@case ":$$PATH:" in \
+		*":$(BIN_DIR):"*) \
+			echo "Run:       chromie --help" \
+			;; \
+		*) \
+			echo ""; \
+			echo "WARNING: $(BIN_DIR) is not on PATH."; \
+			echo "Add it:    echo 'export PATH=\"$(BIN_DIR):\$$PATH\"' >> ~/.zshrc && source ~/.zshrc" \
+			;; \
+	esac
 
 uninstall:
 	@rm -f "$(TARGET)"
@@ -53,6 +64,7 @@ help:
 	@echo "  make clean        Remove dist/ build output"
 	@echo ""
 	@echo "Install location:"
-	@echo "  Default PREFIX=$(PREFIX)  (BIN_DIR=$(BIN_DIR))"
-	@echo "  Override:  PREFIX=\$$HOME/.local make install"
-	@echo "  Or:        sudo make install"
+	@echo "  Default PREFIX=$(PREFIX)"
+	@echo "  BIN_DIR=$(BIN_DIR)"
+	@echo ""
+	@echo "  System-wide:  sudo make install PREFIX=/usr/local"
