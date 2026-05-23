@@ -19,6 +19,9 @@ importers:
       commander:
         specifier: ^12.1.0
         version: 12.1.0
+      uuidv7:
+        specifier: ^1.0.2
+        version: 1.2.1
     devDependencies:
       '@types/node':
         specifier: ^22.10.5
@@ -398,6 +401,10 @@ packages:
   unpipe@1.0.0:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
     engines: {node: '>= 0.8'}
+
+  uuidv7@1.2.1:
+    resolution: {integrity: sha512-4kPkK3/XTQW9Hbm4CaqfICn+kY9LJtDVEOfgsRRra/+n2Ofg4NqzRFceAkxvQ/Ud/6BpHOPzj8cirqM7TzTN5Q==}
+    hasBin: true
 
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
@@ -811,6 +818,8 @@ snapshots:
   undici-types@6.21.0: {}
 
   unpipe@1.0.0: {}
+
+  uuidv7@1.2.1: {}
 
   vary@1.1.2: {}
 

@@ -1,5 +1,9 @@
 import type { Command } from "commander";
 
+import {
+  callToolViaDaemon,
+  resolveBrowserSocket,
+} from "../browser/client.js";
 import { renderToolResult, type OutputFormat } from "../output.js";
 import { closeMcpClient, getMcpClient } from "./client.js";
 
@@ -49,7 +53,6 @@ function coerce(value: unknown, prop: JsonSchema): unknown {
     }
     return value;
   }
-  // type === "string" or unspecified
   return value;
 }
 
@@ -62,6 +65,13 @@ function describeProp(prop: JsonSchema): string {
   if (prop.default !== undefined) meta.push(`default: ${JSON.stringify(prop.default)}`);
   const metaStr = meta.length ? ` [${meta.join("; ")}]` : "";
   return `${desc}${metaStr}`;
+}
+
+function rootOpts(cmd: Command): Record<string, unknown> {
+  // commander: leaf action receives the Command; .parent walks up to root program.
+  let cur: Command | null = cmd;
+  while (cur?.parent) cur = cur.parent;
+  return cur?.opts() ?? {};
 }
 
 export async function registerToolCommands(devtools: Command): Promise<void> {
@@ -85,7 +95,6 @@ export async function registerToolCommands(devtools: Command): Promise<void> {
     }
 
     cmd.action(async (...actionArgs: unknown[]) => {
-      // commander v12 action signature: (...positionals, options, command)
       const command = actionArgs[actionArgs.length - 1] as Command;
       const optsObj = (actionArgs[actionArgs.length - 2] ?? {}) as Record<string, unknown>;
       const positionals = actionArgs.slice(0, requiredKeys.length);
@@ -102,22 +111,30 @@ export async function registerToolCommands(devtools: Command): Promise<void> {
         }
       }
 
-      const format = (command.parent?.parent?.opts()["outputFormat"] ?? "text") as OutputFormat;
+      const root = rootOpts(command);
+      const format = (root["outputFormat"] ?? "text") as OutputFormat;
+      const browserId = root["browser"] as string | undefined;
 
       let exitCode = 0;
       try {
-        const result = await client.callTool({
-          name: tool.name,
-          arguments: toolArgs,
-        });
-        console.log(renderToolResult(result as Parameters<typeof renderToolResult>[0], format));
-      } catch (err) {
+        let result: Parameters<typeof renderToolResult>[0];
+        if (browserId) {
+          const sockPath = await resolveBrowserSocket(browserId);
+          result = await callToolViaDaemon(sockPath, tool.name, toolArgs);
+        } else {
+          result = (await client.callTool({
+            name: tool.name,
+            arguments: toolArgs,
+          })) as Parameters<typeof renderToolResult>[0];
+        }
+        console.log(renderToolResult(result, format));
+      } catch (e) {
         exitCode = 1;
-        console.error(err instanceof Error ? err.message : String(err));
+        console.error(e instanceof Error ? e.message : String(e));
       }
-      // Force exit: Puppeteer keeps a CDP socket open after McpServer close,
-      // which keeps the Node event loop alive. We're done with the command,
-      // so terminate the whole process instead of waiting on the browser.
+      // Always close the ephemeral in-process MCP (whether or not we used it
+      // for the call — listTools() at startup did). Puppeteer keeps the event
+      // loop alive otherwise.
       await closeMcpClient().catch(() => {});
       process.exit(exitCode);
     });
